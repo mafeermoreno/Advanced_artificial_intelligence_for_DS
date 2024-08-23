@@ -56,7 +56,7 @@ df_encoded.columns = df_encoded.columns.str.strip()
 
 # Scalarize the dataset
 scaled_features = ['Rented Bike Count', 'Hour', 'Temperature(Â°C)', 'Humidity(%)', 'Wind speed (m/s)', 'Visibility (10m)', 'Dew point temperature(Â°C)']
-df_encoded[scaled_features] = df_encoded[scaled_features] - df_encoded[scaled_features].mean() / df_encoded[scaled_features].std()
+df_encoded[scaled_features] = (df_encoded[scaled_features] - df_encoded[scaled_features].mean()) / df_encoded[scaled_features].std()
 
 # Hyphotesis function
 def h(params, sample, bias):
@@ -80,3 +80,18 @@ def error_perc (params, sample, y, bias):
     
     # Average error
     return total_error / N
+
+# Gradient descent function
+def desc_gradient(params, samples, y, bias, alfa):
+    # Calculate the hypothesis to be compared with the real value
+    hypothesis = h(params, samples, bias)
+    # Calculate the error (difference between the hypothesis and the real value)
+    error = hypothesis - y
+    N = len(y)
+    
+    # Calculate the gradient
+    grad = np.dot(samples.T, error) / N
+    params = params - alfa * grad
+    bias = bias - alfa * np.sum(error) / N
+    
+    return params, bias

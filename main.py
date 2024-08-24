@@ -1,97 +1,123 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 
-# Define variable to store errors
-__errors__= [];
-
+# Read original csv file
 df = pd.read_csv('SeoulBikeData.csv', encoding='ISO-8859-1')
-
+df = df[df['Rented Bike Count'] < 2500]
 print(df.head())
-df.info()
-print()
-# Check features' stadistics
-print(df.describe())
-print()
+print(df.info())
 
-# Verify duplicated rows
-duplicated_rows = df.duplicated()
-print(f"Number of duplicated rows: {duplicated_rows.sum()}")
-print()
+# Normalize data
+columns_to_normalize = [
+    'Rented Bike Count', 'Hour', 'Temperature(C)', 
+    'Visibility (10m)', 'Wind speed (m/s)', 
+    'Dew point temperature(C)', 'Solar Radiation (MJ/m2)', 
+    'Rainfall(mm)'
+]
 
-# Verify missing values
-missing_values = df.isnull()
-print(f"Missing values:\n{missing_values.sum()}")
-print()
+for column in columns_to_normalize:
+    df[column] = (df[column] - df[column].min()) / (df[column].max() - df[column].min())
 
-# Count the number of 0's in the 'Solar radiation' column
-zero_solar = df['Solar Radiation (MJ/m2)'] == 0
-print(f"Number of 0's in the 'Solar radiation' column: {zero_solar.sum()}/{len(df)}")
-# Count the number of 0's in the 'Rainfall' column
-zero_rainfall = df['Rainfall(mm)'] == 0
-print(f"Number of 0's in the 'Rainfall' column: {zero_rainfall.sum()}/{len(df)}")
-# Count the number of 0's in the 'Snowfall' column
-zero_snowfall = df['Snowfall (cm)'] == 0
-print(f"Number of 0's in the 'Snowfall' column: {zero_snowfall.sum()}/{len(df)}")
-print() 
+df = pd.get_dummies(df, columns=['Seasons'], prefix ='', prefix_sep ='')
+df['Spring'] = df['Spring'].astype(int)
+df['Summer'] = df['Summer'].astype(int)
+df['Autumn'] = df['Autumn'].astype(int)
+df['Winter'] = df['Winter'].astype(int)
+df.columns = df.columns.str.strip()
 
-# Create a copy of the dataset in csv format
-df.to_csv('SeoulBikeData_clean.csv', index = False)
+df = df.drop(['Date', 'Holiday', 'Humidity(%)', 'Snowfall (cm)', 'Functioning Day'], axis=1)
+corr_matrix = df.corr()
+plt.figure(figsize=(12, 8))
+sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f")
+plt.title('Correlation Matrix')
+plt.show()
+df.to_csv('SeoulBikeData_clean.csv', index=False)
 
-# Read the new dataset
-df_clean = pd.read_csv('SeoulBikeData_clean.csv', encoding ='ISO-8859-1')
+# Divide the dataset into training and test sets
+df = df.sample(frac=1).reset_index(drop=True)
+df_train = df[:int(0.8*len(df))]
+test = df[int(0.8*len(df)):]
 
-# Delete from the copy the features 'Solar radiation(MJ/m2)', 'Rainfall(mm)' and 'Snowfall (cm)' (Fully missing II)
-df_clean.drop(['Solar Radiation (MJ/m2)','Rainfall(mm)', 'Snowfall (cm)'], axis=1, inplace = True)
+# Select features to use as input
+features = ['Hour', 'Temperature(C)', 'Visibility (10m)', 'Wind speed (m/s)', 'Dew point temperature(C)','Spring', 'Summer', 'Autumn', 'Winter','Solar Radiation (MJ/m2)', 'Rainfall(mm)']
+x_train = df_train[features].values
+# Select the target variable (the value we want to predict)
+y_train = df_train['Rented Bike Count'].values
 
-# Apply one-hot encoding to the 'Seasons' and 'Holiday' features
-df_encoded = pd.get_dummies(df_clean, columns=['Seasons', 'Holiday'], prefix ='', prefix_sep ='')
-df_encoded['Spring'] = df_encoded['Spring'].astype(int)
-df_encoded['Summer'] = df_encoded['Summer'].astype(int)
-df_encoded['Autumn'] = df_encoded['Autumn'].astype(int)
-df_encoded['Winter'] = df_encoded['Winter'].astype(int)
-df_encoded['Holiday'] = df_encoded['Holiday'].astype(int)
-df_encoded['No Holiday'] = df_encoded['No Holiday'].astype(int)
-df_encoded.columns = df_encoded.columns.str.strip()
+# Select features and target variable for the test set
+x_test = test[features].values
+y_test = test['Rented Bike Count'].values
 
-# Scalarize the dataset
-scaled_features = ['Rented Bike Count', 'Hour', 'Temperature(Â°C)', 'Humidity(%)', 'Wind speed (m/s)', 'Visibility (10m)', 'Dew point temperature(Â°C)']
-df_encoded[scaled_features] = (df_encoded[scaled_features] - df_encoded[scaled_features].mean()) / df_encoded[scaled_features].std()
+# Add bias to the input features
+train_with_bias = np.c_[np.ones(x_train.shape[0]), x_train]
+test_with_bias = np.c_[np.ones(x_test.shape[0]), x_test]
 
-# Hyphotesis function
-def h(params, sample, bias):
-    acum = bias
-    for i in range(len(params)):
-        acum += params[i] * sample[i]
-    
-    # Apply the sigmoid function to the linear combination
-    return 1 / (1 + np.exp(-acum))
+# Initialize the parameters randomly
+params = np.random.randn(train_with_bias.shape[1]) 
+alfa = 0.1 #Learning rate
+epochs = 0
+_errors_ = []
 
-# Percentage of error
-def error_perc (params, sample, y, bias):
-    N = len(y) 
-    total_error = 0
-    
-    for i in range(N):
-        # Predict the probability using the hypothesis function
-        prediction = h(params, sample[i], bias)
-        # Calculate the cross-entropy for the sample
-        total_error += -y[i] * np.log(prediction) - (1 - y[i]) * np.log(1 - prediction)
-    
-    # Average error
-    return total_error / N
+# Hypothesis function (linear regression)
+def h(params, sample):
+    return np.dot(params, sample)
+
+# Mean squared error function
+def mse(params, samples, y):
+    global _errors_
+    predictions = np.dot(samples, params)
+    errors = predictions - y
+    total_error = np.sum(errors ** 2)
+    mean_error_param = total_error / (2 * len(samples))
+    _errors_.append(mean_error_param)
+    return mean_error_param
 
 # Gradient descent function
-def desc_gradient(params, samples, y, bias, alfa):
-    # Calculate the hypothesis to be compared with the real value
-    hypothesis = h(params, samples, bias)
-    # Calculate the error (difference between the hypothesis and the real value)
-    error = hypothesis - y
-    N = len(y)
-    
-    # Calculate the gradient
-    grad = np.dot(samples.T, error) / N
-    params = params - alfa * grad
-    bias = bias - alfa * np.sum(error) / N
-    
-    return params, bias
+def gd(params, samples, y, alfa):
+    predictions = np.dot(samples, params)
+    errors = predictions - y
+    gradients = np.dot(samples.T, errors) / len(samples)
+    params -= alfa * gradients
+    return params
+
+# Training loop
+while True:
+    initial_params = params.copy()
+    params = gd(params, train_with_bias, y_train, alfa)
+    error = mse(params, train_with_bias, y_train)
+    print(f"Epoch #{epochs}, Error: {error}")
+    epochs += 1
+    if np.allclose(initial_params, params) or epochs == 10000:
+        print(params)
+        break
+
+# Calculate R^2 to evaluate the model performance 
+def r_2(y_real, y_pred):
+    total_variance = np.sum((y_real - np.mean(y_real)) ** 2)
+    residual_variance = np.sum((y_real - y_pred) ** 2)
+    return 1 - (residual_variance / total_variance)
+
+# Predicciones y cálculo de R^2
+predictions = np.dot(test_with_bias, params)
+predictions = np.maximum(predictions, 0) 
+r2_test = r_2(y_test, predictions)
+print(f"R^2 en el conjunto de prueba: {r2_test:.4f}")
+
+# Plot the error vs epochs
+plt.plot(_errors_)
+plt.xlabel('Epochs')
+plt.ylabel('Mean Squared Error')
+plt.title('Error vs Epochs')
+plt.show()
+
+# Plot real values vs predictions
+plt.figure(figsize=(10, 6))
+plt.scatter(range(len(y_test)), y_test, color='green', label='True Values', alpha=0.6)
+plt.scatter(range(len(predictions)), predictions, color='blue', label='Predictions', alpha=0.6)
+plt.xlabel('Sample Index')
+plt.ylabel('Rented Bike Count')
+plt.title('True Values vs Predictions')
+plt.legend()
+plt.show()

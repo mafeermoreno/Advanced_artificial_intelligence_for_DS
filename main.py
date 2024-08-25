@@ -12,7 +12,7 @@ print(df.info())
 # Normalize data
 columns_to_normalize = [
     'Rented Bike Count', 'Hour', 'Temperature(C)', 
-    'Visibility (10m)', 'Wind speed (m/s)', 
+    'Visibility (10m)', 
     'Dew point temperature(C)', 'Solar Radiation (MJ/m2)', 
     'Rainfall(mm)'
 ]
@@ -41,7 +41,7 @@ df_train = df[:int(0.8*len(df))]
 test = df[int(0.8*len(df)):]
 
 # Select features to use as input
-features = ['Hour', 'Temperature(C)', 'Visibility (10m)', 'Wind speed (m/s)', 'Dew point temperature(C)','Spring', 'Summer', 'Autumn', 'Winter','Solar Radiation (MJ/m2)', 'Rainfall(mm)']
+features = ['Hour', 'Temperature(C)', 'Visibility (10m)', 'Dew point temperature(C)','Spring', 'Summer', 'Autumn', 'Winter','Solar Radiation (MJ/m2)', 'Rainfall(mm)']
 x_train = df_train[features].values
 # Select the target variable (the value we want to predict)
 y_train = df_train['Rented Bike Count'].values

@@ -27,7 +27,7 @@ df['Autumn'] = df['Autumn'].astype(int)
 df['Winter'] = df['Winter'].astype(int)
 df.columns = df.columns.str.strip()
 
-df = df.drop(['Date', 'Holiday', 'Humidity(%)', 'Snowfall (cm)', 'Functioning Day'], axis=1)
+df = df.drop(['Date', 'Holiday', 'Humidity(%)', 'Visibility (10m)', 'Wind speed (m/s)', 'Snowfall (cm)', 'Functioning Day'], axis=1)
 corr_matrix = df.corr()
 plt.figure(figsize=(12, 8))
 sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f")
@@ -41,7 +41,7 @@ df_train = df[:int(0.8*len(df))]
 test = df[int(0.8*len(df)):]
 
 # Select features to use as input
-features = ['Hour', 'Temperature(C)', 'Visibility (10m)', 'Dew point temperature(C)','Spring', 'Summer', 'Autumn', 'Winter','Solar Radiation (MJ/m2)', 'Rainfall(mm)']
+features = ['Hour', 'Temperature(C)', 'Dew point temperature(C)','Spring', 'Summer', 'Autumn', 'Winter','Solar Radiation (MJ/m2)', 'Rainfall(mm)']
 x_train = df_train[features].values
 # Select the target variable (the value we want to predict)
 y_train = df_train['Rented Bike Count'].values

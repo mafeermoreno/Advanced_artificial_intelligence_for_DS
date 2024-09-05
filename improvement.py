@@ -13,7 +13,7 @@ df = df[df['Rented Bike Count'] < 2500]
 columns_to_normalize = [
     'Rented Bike Count', 'Hour', 'Temperature(C)', 
     'Visibility (10m)', 'Dew point temperature(C)', 
-    'Solar Radiation (MJ/m2)', 'Rainfall(mm)'
+    'Solar Radiation (MJ/m2)', 'Rainfall(mm)', 'Humidity(%)'
 ]
 
 for column in columns_to_normalize:
@@ -24,7 +24,7 @@ df = pd.get_dummies(df, columns=['Seasons'], prefix='', prefix_sep='')
 df.columns = df.columns.str.strip()
 
 # Delete irrelevant columns
-df = df.drop(['Date', 'Holiday', 'Humidity(%)', 'Visibility (10m)', 
+df = df.drop(['Date', 'Holiday', 'Visibility (10m)', 
               'Wind speed (m/s)', 'Snowfall (cm)', 'Functioning Day'], axis=1)
 
 # Split the dataset into training, validation, and test sets
@@ -40,7 +40,7 @@ df_test = df[train_size+val_size:]
 # Select features
 features = ['Hour', 'Temperature(C)', 'Dew point temperature(C)', 
             'Spring', 'Summer', 'Autumn', 'Winter', 
-            'Solar Radiation (MJ/m2)', 'Rainfall(mm)']
+            'Solar Radiation (MJ/m2)', 'Rainfall(mm)', 'Humidity(%)']
 
 x_train = df_train[features].values.astype(np.float64)
 y_train = df_train['Rented Bike Count'].values.astype(np.float64)

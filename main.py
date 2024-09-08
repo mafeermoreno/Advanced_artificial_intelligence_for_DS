@@ -18,16 +18,16 @@ columns_to_normalize = [
 for column in columns_to_normalize:
     df[column] = (df[column] - df[column].min()) / (df[column].max() - df[column].min())
 
-df = pd.get_dummies(df, columns=['Seasons'], prefix ='', prefix_sep ='')
+df = pd.get_dummies(df, columns=['Seasons'], prefix='', prefix_sep='')
 df.columns = df.columns.str.strip()
 
 df = df.drop(['Date', 'Holiday', 'Humidity(%)', 'Visibility (10m)', 'Wind speed (m/s)', 'Snowfall (cm)', 'Functioning Day'], axis=1)
 
 # Divide the dataset into training, validation, and test sets
 df = df.sample(frac=1).reset_index(drop=True)
-train_size = int(0.7 * len(df))  # 70% for training
-val_size = int(0.15 * len(df))   # 15% for validation
-test_size = len(df) - train_size - val_size  # 15% for test
+train_size = int(0.6 * len(df))  # 60% for training
+val_size = int(0.20 * len(df))   # 20% for validation
+test_size = len(df) - train_size - val_size  # 20% for test
 
 df_train = df[:train_size]
 df_val = df[train_size:train_size+val_size]
@@ -58,6 +58,7 @@ train_errors = []
 val_errors = []
 train_r2 = []
 val_r2 = []
+test_r2 = []  # Nueva lista para almacenar el R² en el conjunto de prueba
 
 # Hypothesis function (linear regression)
 def h(params, sample):
@@ -85,7 +86,7 @@ def gd(params, samples, y, alfa):
     params -= alfa * gradients
     return params
 
-# Training loop with validation
+# Training loop with validation and test set tracking
 while True:
     initial_params = params.copy()
     params = gd(params, train_with_bias, y_train, alfa)
@@ -102,29 +103,33 @@ while True:
     train_r2.append(train_r2_value)
     val_r2.append(val_r2_value)
     
-    print(f"Epoch #{epochs}, Train Error: {train_error}, Val Error: {val_error}, Train R²: {train_r2_value:.4f}, Val R²: {val_r2_value:.4f}")
+    # Calculate test R² (accuracy) for this epoch
+    test_r2_value = r_2(y_test, np.dot(test_with_bias, params))
+    test_r2.append(test_r2_value)
+    
+    print(f"Epoch #{epochs}, Train R²: {train_r2_value:.4f}, Val R²: {val_r2_value:.4f}, Test R²: {test_r2_value:.4f}")
     epochs += 1
     
     if np.allclose(initial_params, params) or epochs == 10000:
         print(params)
         break
 
-# Plot training and validation R² (accuracy)
-plt.plot(train_r2, label='Train R² (Accuracy)')
-plt.plot(val_r2, label='Validation R² (Accuracy)')
+# Plot training, validation, and test R² (accuracy) over epochs
+plt.figure(figsize=(10, 6))
+plt.plot(train_r2, label='Train Accuracy', color='blue')
+plt.plot(val_r2, label='Validation Accuracy', color='orange')
+plt.plot(test_r2, label='Test Accuracy', color='green')
+
 plt.xlabel('Epochs')
-plt.ylabel('R² (Accuracy)')
-plt.title('Train vs Validation R² (Accuracy)')
+plt.ylabel('Accuracy')
+plt.title('Train, Validation, and Test Accuracy Over Epochs')
 plt.legend()
 plt.show()
 
-# Calculate R² for test set
+# Plot real values vs predictions
 predictions = np.dot(test_with_bias, params)
 predictions = np.maximum(predictions, 0) 
-r2_test = r_2(y_test, predictions)
-print(f"R² en el conjunto de prueba: {r2_test:.4f}")
 
-# Plot real values vs predictions
 plt.figure(figsize=(10, 6))
 plt.scatter(range(len(y_test)), y_test, color='#34a2eb', label='True Values', alpha=0.6)
 plt.scatter(range(len(predictions)), predictions, color='#eb3471', label='Predictions', alpha=0.6)
